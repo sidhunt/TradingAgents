@@ -7,3 +7,18 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+
+# Results and logs
+results/
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+.DS_Store
