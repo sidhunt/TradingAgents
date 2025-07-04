@@ -1,4 +1,5 @@
 typing-extensions
+typer
 langchain-openai
 langchain-experimental
 pandas

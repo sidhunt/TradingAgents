@@ -30,11 +30,12 @@ This repository is configured for GitHub Codespaces - just click the button belo
    python -m cli.main analyze
    ```
 
-## 📖 Need Help?
+## 📖 Complete Documentation
 
-- See [.devcontainer/README.md](.devcontainer/README.md) for detailed setup instructions
-- Check the main [README.md](README.md) for usage documentation
-- Visit the [original repository](https://github.com/TauricResearch/TradingAgents) for more information
+For detailed setup instructions, troubleshooting, and usage examples, see:
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete setup guide
+- **[.devcontainer/README.md](.devcontainer/README.md)** - Technical documentation
+- **[README.md](README.md)** - Main project documentation
 
 ## 🔑 Required API Keys
 
@@ -43,6 +44,24 @@ You'll need these API keys to use the full functionality:
 - **FINNHUB_API_KEY**: Get from [FinnHub](https://finnhub.io/) (free tier available)
 - **OPENAI_API_KEY**: Get from [OpenAI](https://platform.openai.com/) (paid service)
 - **GOOGLE_API_KEY**: Optional, for Google AI services
+
+## 🛠️ Testing Your Setup
+
+Run these scripts to test your setup:
+
+```bash
+# Test basic setup
+python test_codespaces_setup.py
+
+# Validate full installation
+python validate_setup.py
+
+# Try example configuration
+python example_config.py
+
+# Demo CLI usage
+python demo_cli.py
+```
 
 ---
 
