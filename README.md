@@ -43,7 +43,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🔧 [GitHub Codespaces](#github-codespaces-setup) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -145,6 +145,42 @@ An interface will appear showing results as they load, letting you track the age
 <p align="center">
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+## GitHub Codespaces Setup
+
+### 🚀 One-Click Development Environment
+
+This repository is configured for GitHub Codespaces, providing a ready-to-use development environment with all dependencies pre-installed.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/sidhunt/TradingAgents)
+
+### Quick Start Steps
+
+1. **Launch Codespace** - Click the button above or go to Code → Codespaces → Create codespace
+2. **Wait for setup** - The environment will automatically install all dependencies (~3-5 minutes)
+3. **Set your API keys:**
+   ```bash
+   export FINNHUB_API_KEY="your_finnhub_key"
+   export OPENAI_API_KEY="your_openai_key"
+   ```
+4. **Validate setup:**
+   ```bash
+   python validate_setup.py
+   ```
+5. **Run the CLI:**
+   ```bash
+   python -m cli.main analyze
+   ```
+
+### What's Included
+
+- **Python 3.12** with all dependencies pre-installed
+- **VS Code** with Python extensions
+- **Environment variables** pre-configured
+- **Port forwarding** for web apps (8000, 8501)
+- **Validation script** to check setup
+
+For detailed setup instructions, see [CODESPACES.md](CODESPACES.md) or [.devcontainer/README.md](.devcontainer/README.md).
 
 ## TradingAgents Package
 
