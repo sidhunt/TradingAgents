@@ -417,3 +417,51 @@ class Toolkit:
         )
 
         return openai_fundamentals_results
+
+    @staticmethod
+    @tool
+    def get_polymarket_events(
+        category: Annotated[str, "Category to filter events (e.g., 'politics', 'crypto', 'sports')"],
+        limit: Annotated[int, "Maximum number of events to return (default: 10)"] = 10,
+        active_only: Annotated[bool, "Only return active markets (default: True)"] = True,
+    ):
+        """
+        Get prediction market events from Polymarket.
+        Args:
+            category: Category to filter events
+            limit: Maximum number of events to return
+            active_only: Only return active markets
+        Returns:
+            str: Formatted string containing event information
+        """
+        return interface.get_polymarket_events(category, limit, active_only)
+
+    @staticmethod
+    @tool
+    def get_polymarket_market_analysis(
+        market_id: Annotated[str, "Market ID to analyze"],
+        include_history: Annotated[bool, "Include historical price data (default: True)"] = True,
+    ):
+        """
+        Get detailed analysis for a specific prediction market.
+        Args:
+            market_id: Market ID to analyze
+            include_history: Include historical price data
+        Returns:
+            str: Formatted string containing market analysis
+        """
+        return interface.get_polymarket_market_analysis(market_id, include_history)
+
+    @staticmethod
+    @tool
+    def get_trending_prediction_markets(
+        limit: Annotated[int, "Maximum number of trending markets to return (default: 5)"] = 5,
+    ):
+        """
+        Get trending prediction markets based on volume and activity.
+        Args:
+            limit: Maximum number of markets to return
+        Returns:
+            str: Formatted string containing trending markets
+        """
+        return interface.get_trending_prediction_markets(limit)

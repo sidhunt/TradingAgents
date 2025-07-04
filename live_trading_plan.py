@@ -98,6 +98,10 @@ class PersonalTradingAgent:
             "max_concurrent_positions": 3,     # Max 3 positions
             "consecutive_loss_limit": 3,       # Pause after 3 losses
             "analysis_interval": 900,          # 15 minutes
+            "enable_prediction_markets": True,  # Enable prediction market trading
+            "prediction_market_allocation": 0.30, # Max 30% of portfolio for prediction markets
+            "prediction_market_max_position": 0.05, # Max 5% per prediction market position
+        }
             "risk_check_interval": 300,        # 5 minutes
         }
         
@@ -297,12 +301,30 @@ class PersonalTradingAgent:
         return time_since_analysis.total_seconds() >= self.config["analysis_interval"]
     
     async def get_market_opportunities(self) -> List[str]:
-        """Get list of stocks to analyze based on market conditions."""
-        # In a real implementation, this would use market scanners
-        # For now, return a subset of watchlist based on time
+        """Get list of stocks and prediction markets to analyze based on market conditions."""
+        opportunities = []
+        
+        # Traditional stock opportunities
         import random
         random.shuffle(self.watchlist)
-        return self.watchlist[:3]  # Analyze top 3 opportunities
+        opportunities.extend(self.watchlist[:3])  # Analyze top 3 stock opportunities
+        
+        # Prediction market opportunities (if enabled)
+        if self.config.get("enable_prediction_markets", False):
+            try:
+                from tradingagents.dataflows.polymarket_utils import get_trending_markets
+                trending_markets = get_trending_markets(limit=2)
+                
+                # Add prediction market opportunities with special prefix
+                for market in trending_markets:
+                    market_symbol = f"PM:{market['market_id']}"
+                    opportunities.append(market_symbol)
+                    
+                logger.info(f"📊 Added {len(trending_markets)} prediction market opportunities")
+            except Exception as e:
+                logger.error(f"❌ Error getting prediction market opportunities: {e}")
+        
+        return opportunities
     
     async def analyze_opportunity(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
