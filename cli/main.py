@@ -25,6 +25,13 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
 
+# Import live trading commands
+try:
+    from cli.live_trading import app as live_app
+    LIVE_TRADING_AVAILABLE = True
+except ImportError:
+    LIVE_TRADING_AVAILABLE = False
+
 console = Console()
 
 app = typer.Typer(
@@ -32,6 +39,16 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+
+# Add live trading commands if available
+if LIVE_TRADING_AVAILABLE:
+    app.add_typer(live_app, name="live")
+else:
+    @app.command()
+    def live():
+        """Live trading commands (not available)."""
+        console.print("[red]❌ Live trading module not available[/red]")
+        console.print("Make sure all dependencies are installed with: pip install -e .")
 
 
 # Create a deque to store recent messages with a maximum length

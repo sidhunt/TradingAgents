@@ -22,3 +22,7 @@ results/
 # OS generated files
 Thumbs.db
 .DS_Store
+
+
+#Ignore vscode AI rules
+.github/copilot-instructions.md
