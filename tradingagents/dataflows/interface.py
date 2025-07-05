@@ -4,6 +4,7 @@ from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
 from .finnhub_utils import get_data_in_range
+from .polymarket_utils import *
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -805,3 +806,130 @@ def get_fundamentals_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_polymarket_events(
+    category: Annotated[str, "Category to filter events (e.g., 'politics', 'crypto', 'sports')"],
+    limit: Annotated[int, "Maximum number of events to return (default: 10)"] = 10,
+    active_only: Annotated[bool, "Only return active markets (default: True)"] = True,
+) -> str:
+    """
+    Get prediction market events from Polymarket.
+    
+    Args:
+        category: Category to filter events
+        limit: Maximum number of events to return
+        active_only: Only return active markets
+        
+    Returns:
+        Formatted string containing event information
+    """
+    from .polymarket_utils import get_polymarket_events as get_events
+    
+    events = get_events(
+        category=category if category.lower() != "all" else None,
+        active_only=active_only,
+        limit=limit
+    )
+    
+    if not events:
+        return f"No active prediction markets found for category: {category}"
+    
+    result = f"## Polymarket Events - {category.title()}\n\n"
+    
+    for event in events:
+        result += f"### {event['title']}\n"
+        result += f"**Category:** {event['category'].title()}\n"
+        result += f"**Description:** {event['description']}\n"
+        result += f"**End Date:** {event['end_date']}\n"
+        result += f"**Total Volume:** ${event['total_volume']:,}\n"
+        result += f"**Markets:**\n"
+        
+        for market in event['markets']:
+            probability = market['price'] * 100
+            result += f"- **{market['outcome']}:** ${market['price']:.3f} ({probability:.1f}% probability)\n"
+            result += f"  - Volume: ${market['volume']:,}\n"
+            result += f"  - Liquidity: ${market['liquidity']:,}\n"
+        
+        result += "\n"
+    
+    return result
+
+
+def get_polymarket_market_analysis(
+    market_id: Annotated[str, "Market ID to analyze"],
+    include_history: Annotated[bool, "Include historical price data (default: True)"] = True,
+) -> str:
+    """
+    Get detailed analysis for a specific prediction market.
+    
+    Args:
+        market_id: Market ID to analyze
+        include_history: Include historical price data
+        
+    Returns:
+        Formatted string containing market analysis
+    """
+    from .polymarket_utils import get_polymarket_market_analytics, get_polymarket_market_history
+    
+    analytics = get_polymarket_market_analytics(market_id)
+    
+    if not analytics:
+        return f"No analytics found for market: {market_id}"
+    
+    result = f"## Market Analysis - {market_id}\n\n"
+    
+    result += f"**Current Price:** ${analytics['current_price']:.3f} ({analytics['current_price']*100:.1f}% probability)\n"
+    result += f"**24h Change:** ${analytics['price_change_24h']:.3f}\n"
+    result += f"**7d Change:** ${analytics['price_change_7d']:.3f}\n"
+    result += f"**30d Average Price:** ${analytics['avg_price_30d']:.3f}\n"
+    result += f"**Total Volume (30d):** ${analytics['total_volume_30d']:,}\n"
+    result += f"**Average Volume (30d):** ${analytics['avg_volume_30d']:,.0f}\n"
+    result += f"**Volatility:** {analytics['volatility']:.4f}\n"
+    result += f"**Trend:** {analytics['trend'].title()}\n\n"
+    
+    if include_history:
+        history = get_polymarket_market_history(market_id)
+        if history:
+            result += "### Recent Price History (Last 10 days)\n\n"
+            result += "| Date | Price | Volume |\n"
+            result += "|------|-------|--------|\n"
+            
+            for data_point in history[-10:]:
+                result += f"| {data_point['date']} | ${data_point['price']:.3f} | ${data_point['volume']:,} |\n"
+    
+    return result
+
+
+def get_trending_prediction_markets(
+    limit: Annotated[int, "Maximum number of trending markets to return (default: 5)"] = 5,
+) -> str:
+    """
+    Get trending prediction markets based on volume and activity.
+    
+    Args:
+        limit: Maximum number of markets to return
+        
+    Returns:
+        Formatted string containing trending markets
+    """
+    from .polymarket_utils import get_trending_markets
+    
+    trending = get_trending_markets(limit=limit)
+    
+    if not trending:
+        return "No trending prediction markets found"
+    
+    result = f"## Trending Prediction Markets\n\n"
+    
+    for i, market in enumerate(trending, 1):
+        probability = market['price'] * 100
+        result += f"### {i}. {market['event_title']}\n"
+        result += f"**Outcome:** {market['outcome']}\n"
+        result += f"**Price:** ${market['price']:.3f} ({probability:.1f}% probability)\n"
+        result += f"**Volume:** ${market['volume']:,}\n"
+        result += f"**Category:** {market['category'].title()}\n"
+        result += f"**End Date:** {market['end_date']}\n"
+        result += f"**Trend Score:** {market['trend_score']:.0f}\n\n"
+    
+    return result

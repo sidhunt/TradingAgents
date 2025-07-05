@@ -23,6 +23,10 @@ from .interface import (
     # Market data functions
     get_YFin_data_window,
     get_YFin_data,
+    # Prediction market functions
+    get_polymarket_events,
+    get_polymarket_market_analysis,
+    get_trending_prediction_markets,
 )
 
 __all__ = [
@@ -43,4 +47,8 @@ __all__ = [
     # Market data functions
     "get_YFin_data_window",
     "get_YFin_data",
+    # Prediction market functions
+    "get_polymarket_events",
+    "get_polymarket_market_analysis",
+    "get_trending_prediction_markets",
 ]
