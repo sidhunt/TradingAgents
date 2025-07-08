@@ -101,7 +101,6 @@ class PersonalTradingAgent:
             "enable_prediction_markets": True,  # Enable prediction market trading
             "prediction_market_allocation": 0.30, # Max 30% of portfolio for prediction markets
             "prediction_market_max_position": 0.05, # Max 5% per prediction market position
-        }
             "risk_check_interval": 300,        # 5 minutes
         }
         
@@ -110,8 +109,10 @@ class PersonalTradingAgent:
         self.ta_config["online_tools"] = True
         self.ta_config["max_debate_rounds"] = 1  # Quick decisions
         self.ta_config["max_risk_discuss_rounds"] = 1
-        self.ta_config["quick_think_llm"] = "gpt-4o-mini"  # Cost-effective
-        self.ta_config["deep_think_llm"] = "gpt-4o"
+        self.ta_config["llm_provider"] = "openrouter"  # Use OpenRouter for production
+        self.ta_config["backend_url"] = "https://openrouter.ai/api/v1"
+        self.ta_config["quick_think_llm"] = "anthropic/claude-3.5-haiku"  # Cost-effective reasoning
+        self.ta_config["deep_think_llm"] = "anthropic/claude-3.5-sonnet"  # High-quality analysis
         
         # Initialize with core analysts for efficiency
         self.ta = TradingAgentsGraph(
