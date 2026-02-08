@@ -1,27 +1,62 @@
-typing-extensions
-typer
-langchain-openai
-langchain-experimental
-pandas
-yfinance
-praw
-feedparser
-stockstats
-eodhd
-langgraph
-chromadb
-setuptools
-backtrader
-akshare
-tushare
-finnhub-python
-parsel
-requests
-tqdm
-pytz
-redis
-chainlit
-rich
-questionary
-langchain_anthropic
-langchain-google-genai
+# Production Requirements for TradingAgents
+# Pinned versions for reproducible builds
+# Generated: 2025-02-07
+
+# Core dependencies
+numpy==1.26.4
+pandas==2.2.3
+pydantic==2.10.6
+python-dotenv==1.0.1
+pytz==2025.1
+typing-extensions==4.12.2
+
+# LangChain ecosystem
+langchain==0.3.17
+langchain-anthropic==0.3.7
+langchain-core==0.3.33
+langchain-experimental==0.3.4
+langchain-google-genai==2.0.9
+langchain-openai==0.3.3
+langchain-text-splitters==0.3.5
+langgraph==0.2.70
+langgraph-checkpoint==2.0.10
+langsmith==0.3.4
+
+# LLM providers
+anthropic==0.45.2
+openai==1.61.0
+google-generativeai==0.8.4
+google-ai-generativelanguage==0.6.15
+
+# Data sources and financial APIs
+akshare==1.16.98
+eodhd==1.4.0
+finnhub-python==2.4.23
+stockstats==0.6.4
+tushare==1.4.21
+yfinance==0.2.54
+
+# Web scraping and data fetching
+feedparser==6.0.11
+parsel==1.10.0
+praw==7.8.1
+requests==2.32.3
+
+# CLI and UI
+chainlit==2.4.1
+questionary==2.1.0
+rich==13.9.4
+typer==0.15.1
+
+# Database and caching
+chromadb==0.6.3
+redis==5.2.1
+
+# Trading and backtesting
+backtrader==1.9.78.123
+
+# Utilities
+tqdm==4.67.1
+
+# Development dependencies (install with: pip install -r requirements-dev.txt)
+# See requirements-dev.txt for development tools

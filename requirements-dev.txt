@@ -1,0 +1,31 @@
+# Development Requirements for TradingAgents
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.3
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+respx==0.22.0
+
+# Code quality
+black==25.1.0
+flake8==7.1.1
+isort==6.0.0
+mypy==1.15.0
+pre-commit==4.1.0
+
+# Type stubs
+types-python-dateutil==2.9.0.20241206
+types-pytz==2025.1.0.20250204
+types-requests==2.32.0.20241016
+
+# Documentation
+mkdocs==1.6.1
+mkdocs-material==9.6.3
+mkdocstrings[python]==0.28.0
+
+# Build tools
+build==1.2.2.post1
+twine==6.1.0
+wheel==0.45.1

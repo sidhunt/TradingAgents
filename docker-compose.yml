@@ -1,0 +1,70 @@
+# Docker Compose for TradingAgents
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  tradingagents:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradingagents
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - TRADINGAGENTS_RESULTS_DIR=/app/results
+      - TRADINGAGENTS_LOG_LEVEL=${TRADINGAGENTS_LOG_LEVEL:-INFO}
+    volumes:
+      - ./results:/app/results
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: python -m cli.main analyze
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import tradingagents; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: tradingagents-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Optional: Jupyter notebook for analysis
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradingagents-notebook
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./results:/app/results
+    command: >
+      sh -c "pip install jupyter jupyterlab &&
+             jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+             --NotebookApp.token='' --NotebookApp.password=''"
+    profiles:
+      - notebook
+
+volumes:
+  redis_data:
