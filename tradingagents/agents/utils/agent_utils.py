@@ -1,27 +1,56 @@
-from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage, AIMessage
-from typing import List
-from typing import Annotated
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import RemoveMessage
-from langchain_core.tools import tool
-from datetime import date, timedelta, datetime
+"""Utility functions and classes for TradingAgents.
+
+This module provides helper functions, the Toolkit class for data access,
+and message management utilities for the multi-agent trading framework.
+"""
+
+from __future__ import annotations
+
 import functools
-import pandas as pd
 import os
+from datetime import date, datetime, timedelta
+from typing import Annotated, Any, Dict, List, Optional, Union
+
+import pandas as pd
 from dateutil.relativedelta import relativedelta
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    RemoveMessage,
+    ToolMessage,
+)
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
+
 import tradingagents.dataflows.interface as interface
 from tradingagents.default_config import DEFAULT_CONFIG
-from langchain_core.messages import HumanMessage
 
 
-def create_msg_delete():
-    def delete_messages(state):
-        """Clear messages and add placeholder for Anthropic compatibility"""
-        messages = state["messages"]
+def create_msg_delete() -> callable:
+    """Create a message deletion function for Anthropic compatibility.
+    
+    Returns a function that clears messages and adds a placeholder,
+    which is required for compatibility with Anthropic's Claude models.
+    
+    Returns:
+        A function that takes a state dictionary and returns updated messages.
+    """
+    def delete_messages(state: Dict[str, Any]) -> Dict[str, List[BaseMessage]]:
+        """Clear messages and add placeholder for Anthropic compatibility.
+        
+        Args:
+            state: The current state dictionary containing messages.
+            
+        Returns:
+            Dictionary with removal operations and placeholder message.
+        """
+        messages = state.get("messages", [])
         
         # Remove all messages
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
+        removal_operations = [RemoveMessage(id=m.id) for m in messages if hasattr(m, 'id')]
         
         # Add a minimal placeholder message
         placeholder = HumanMessage(content="Continue")
@@ -31,20 +60,98 @@ def create_msg_delete():
     return delete_messages
 
 
+def format_analysis_report(analysis_type: str, content: str) -> str:
+    """Format an analysis report with proper structure.
+    
+    Args:
+        analysis_type: Type of analysis (e.g., 'market', 'sentiment').
+        content: The content of the analysis.
+        
+    Returns:
+        Formatted analysis report string.
+    """
+    return f"""
+=== {analysis_type.upper()} ANALYSIS ===
+{content}
+=== END {analysis_type.upper()} ANALYSIS ===
+"""
+
+
+def truncate_text(text: str, max_length: int = 1000) -> str:
+    """Truncate text to a maximum length.
+    
+    Args:
+        text: The text to truncate.
+        max_length: Maximum allowed length.
+        
+    Returns:
+        Truncated text with ellipsis if needed.
+    """
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - 3] + "..."
+
+
+def validate_ticker(ticker: str) -> bool:
+    """Validate a stock ticker symbol.
+    
+    Args:
+        ticker: The ticker symbol to validate.
+        
+    Returns:
+        True if valid, False otherwise.
+    """
+    if not ticker or not isinstance(ticker, str):
+        return False
+    
+    # Ticker should be 1-5 characters, alphanumeric
+    ticker = ticker.strip().upper()
+    if len(ticker) < 1 or len(ticker) > 5:
+        return False
+    
+    # Should only contain letters (some tickers have dots for class shares)
+    if not all(c.isalpha() or c == '.' for c in ticker):
+        return False
+    
+    return True
+
+
 class Toolkit:
-    _config = DEFAULT_CONFIG.copy()
+    """Toolkit for accessing financial data and utilities.
+    
+    This class provides a unified interface for accessing various data sources
+    including Yahoo Finance, Finnhub, Reddit, and more.
+    
+    Attributes:
+        config: Configuration dictionary for the toolkit.
+    """
+    
+    _config: Dict[str, Any] = DEFAULT_CONFIG.copy()
 
     @classmethod
-    def update_config(cls, config):
-        """Update the class-level configuration."""
+    def update_config(cls, config: Dict[str, Any]) -> None:
+        """Update the class-level configuration.
+        
+        Args:
+            config: Dictionary with configuration updates.
+        """
         cls._config.update(config)
 
     @property
-    def config(self):
-        """Access the configuration."""
+    def config(self) -> Dict[str, Any]:
+        """Access the configuration.
+        
+        Returns:
+            The current configuration dictionary.
+        """
         return self._config
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the Toolkit.
+        
+        Args:
+            config: Optional configuration dictionary to update.
+        """
         if config:
             self.update_config(config)
 
@@ -53,415 +160,440 @@ class Toolkit:
     def get_reddit_news(
         curr_date: Annotated[str, "Date you want to get news for in yyyy-mm-dd format"],
     ) -> str:
-        """
-        Retrieve global news from Reddit within a specified time frame.
-        Args:
-            curr_date (str): Date you want to get news for in yyyy-mm-dd format
-        Returns:
-            str: A formatted dataframe containing the latest global news from Reddit in the specified time frame.
-        """
+        """Retrieve global news from Reddit within a specified time frame.
         
-        global_news_result = interface.get_reddit_global_news(curr_date, 7, 5)
-
-        return global_news_result
+        Args:
+            curr_date: Date you want to get news for in yyyy-mm-dd format.
+            
+        Returns:
+            A formatted string containing the latest global news from Reddit.
+            
+        Raises:
+            ValueError: If date format is invalid.
+            RuntimeError: If Reddit API call fails.
+        """
+        try:
+            global_news_result = interface.get_reddit_global_news(curr_date, 7, 5)
+            return global_news_result
+        except Exception as e:
+            return f"Error retrieving Reddit news: {str(e)}"
 
     @staticmethod
     @tool
     def get_finnhub_news(
-        ticker: Annotated[
-            str,
-            "Search query of a company, e.g. 'AAPL, TSM, etc.",
-        ],
+        ticker: Annotated[str, "Search query of a company, e.g. 'AAPL', 'TSM'"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
         end_date: Annotated[str, "End date in yyyy-mm-dd format"],
-    ):
-        """
-        Retrieve the latest news about a given stock from Finnhub within a date range
+    ) -> str:
+        """Retrieve the latest news about a given stock from Finnhub.
+        
         Args:
-            ticker (str): Ticker of a company. e.g. AAPL, TSM
-            start_date (str): Start date in yyyy-mm-dd format
-            end_date (str): End date in yyyy-mm-dd format
+            ticker: Ticker of a company (e.g., AAPL, TSM).
+            start_date: Start date in yyyy-mm-dd format.
+            end_date: End date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted dataframe containing news about the company within the date range from start_date to end_date
+            A formatted string containing news about the company.
+            
+        Raises:
+            ValueError: If date format is invalid.
         """
+        try:
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+            look_back_days = (end_date_obj - start_date_obj).days
 
-        end_date_str = end_date
-
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        look_back_days = (end_date - start_date).days
-
-        finnhub_news_result = interface.get_finnhub_news(
-            ticker, end_date_str, look_back_days
-        )
-
-        return finnhub_news_result
+            finnhub_news_result = interface.get_finnhub_news(
+                ticker, end_date, look_back_days
+            )
+            return finnhub_news_result
+        except ValueError as e:
+            return f"Invalid date format: {str(e)}"
+        except Exception as e:
+            return f"Error retrieving Finnhub news: {str(e)}"
 
     @staticmethod
     @tool
     def get_reddit_stock_info(
-        ticker: Annotated[
-            str,
-            "Ticker of a company. e.g. AAPL, TSM",
-        ],
+        ticker: Annotated[str, "Ticker of a company, e.g. AAPL, TSM"],
         curr_date: Annotated[str, "Current date you want to get news for"],
     ) -> str:
-        """
-        Retrieve the latest news about a given stock from Reddit, given the current date.
+        """Retrieve the latest news about a given stock from Reddit.
+        
         Args:
-            ticker (str): Ticker of a company. e.g. AAPL, TSM
-            curr_date (str): current date in yyyy-mm-dd format to get news for
+            ticker: Ticker of a company (e.g., AAPL, TSM).
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted dataframe containing the latest news about the company on the given date
+            A formatted string containing the latest news about the company.
         """
-
-        stock_news_results = interface.get_reddit_company_news(ticker, curr_date, 7, 5)
-
-        return stock_news_results
+        try:
+            stock_news_results = interface.get_reddit_company_news(
+                ticker, curr_date, 7, 5
+            )
+            return stock_news_results
+        except Exception as e:
+            return f"Error retrieving Reddit stock info: {str(e)}"
 
     @staticmethod
     @tool
     def get_YFin_data(
-        symbol: Annotated[str, "ticker symbol of the company"],
+        symbol: Annotated[str, "Ticker symbol of the company"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
         end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     ) -> str:
-        """
-        Retrieve the stock price data for a given ticker symbol from Yahoo Finance.
+        """Retrieve stock price data from Yahoo Finance (cached/offline).
+        
         Args:
-            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
-            start_date (str): Start date in yyyy-mm-dd format
-            end_date (str): End date in yyyy-mm-dd format
+            symbol: Ticker symbol of the company (e.g., AAPL, TSM).
+            start_date: Start date in yyyy-mm-dd format.
+            end_date: End date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
+            A formatted string containing the stock price data.
         """
-
-        result_data = interface.get_YFin_data(symbol, start_date, end_date)
-
-        return result_data
+        try:
+            result_data = interface.get_YFin_data(symbol, start_date, end_date)
+            return result_data
+        except Exception as e:
+            return f"Error retrieving Yahoo Finance data: {str(e)}"
 
     @staticmethod
     @tool
     def get_YFin_data_online(
-        symbol: Annotated[str, "ticker symbol of the company"],
+        symbol: Annotated[str, "Ticker symbol of the company"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
         end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     ) -> str:
-        """
-        Retrieve the stock price data for a given ticker symbol from Yahoo Finance.
+        """Retrieve stock price data from Yahoo Finance (online/real-time).
+        
         Args:
-            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
-            start_date (str): Start date in yyyy-mm-dd format
-            end_date (str): End date in yyyy-mm-dd format
+            symbol: Ticker symbol of the company (e.g., AAPL, TSM).
+            start_date: Start date in yyyy-mm-dd format.
+            end_date: End date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
+            A formatted string containing the stock price data.
         """
-
-        result_data = interface.get_YFin_data_online(symbol, start_date, end_date)
-
-        return result_data
+        try:
+            result_data = interface.get_YFin_data_online(symbol, start_date, end_date)
+            return result_data
+        except Exception as e:
+            return f"Error retrieving Yahoo Finance online data: {str(e)}"
 
     @staticmethod
     @tool
     def get_stockstats_indicators_report(
-        symbol: Annotated[str, "ticker symbol of the company"],
-        indicator: Annotated[
-            str, "technical indicator to get the analysis and report of"
-        ],
-        curr_date: Annotated[
-            str, "The current trading date you are trading on, YYYY-mm-dd"
-        ],
-        look_back_days: Annotated[int, "how many days to look back"] = 30,
+        symbol: Annotated[str, "Ticker symbol of the company"],
+        indicator: Annotated[str, "Technical indicator to get the analysis and report of"],
+        curr_date: Annotated[str, "The current trading date, YYYY-mm-dd"],
+        look_back_days: Annotated[int, "How many days to look back"] = 30,
     ) -> str:
-        """
-        Retrieve stock stats indicators for a given ticker symbol and indicator.
+        """Retrieve stock stats indicators for a given ticker (cached/offline).
+        
         Args:
-            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
-            indicator (str): Technical indicator to get the analysis and report of
-            curr_date (str): The current trading date you are trading on, YYYY-mm-dd
-            look_back_days (int): How many days to look back, default is 30
+            symbol: Ticker symbol of the company.
+            indicator: Technical indicator to analyze.
+            curr_date: The current trading date in YYYY-mm-dd format.
+            look_back_days: Number of days to look back (default: 30).
+            
         Returns:
-            str: A formatted dataframe containing the stock stats indicators for the specified ticker symbol and indicator.
+            A formatted string containing the stock stats indicators.
         """
-
-        result_stockstats = interface.get_stock_stats_indicators_window(
-            symbol, indicator, curr_date, look_back_days, False
-        )
-
-        return result_stockstats
+        try:
+            result_stockstats = interface.get_stock_stats_indicators_window(
+                symbol, indicator, curr_date, look_back_days, False
+            )
+            return result_stockstats
+        except Exception as e:
+            return f"Error retrieving stock stats indicators: {str(e)}"
 
     @staticmethod
     @tool
     def get_stockstats_indicators_report_online(
-        symbol: Annotated[str, "ticker symbol of the company"],
-        indicator: Annotated[
-            str, "technical indicator to get the analysis and report of"
-        ],
-        curr_date: Annotated[
-            str, "The current trading date you are trading on, YYYY-mm-dd"
-        ],
-        look_back_days: Annotated[int, "how many days to look back"] = 30,
+        symbol: Annotated[str, "Ticker symbol of the company"],
+        indicator: Annotated[str, "Technical indicator to get the analysis and report of"],
+        curr_date: Annotated[str, "The current trading date, YYYY-mm-dd"],
+        look_back_days: Annotated[int, "How many days to look back"] = 30,
     ) -> str:
-        """
-        Retrieve stock stats indicators for a given ticker symbol and indicator.
+        """Retrieve stock stats indicators for a given ticker (online/real-time).
+        
         Args:
-            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
-            indicator (str): Technical indicator to get the analysis and report of
-            curr_date (str): The current trading date you are trading on, YYYY-mm-dd
-            look_back_days (int): How many days to look back, default is 30
+            symbol: Ticker symbol of the company.
+            indicator: Technical indicator to analyze.
+            curr_date: The current trading date in YYYY-mm-dd format.
+            look_back_days: Number of days to look back (default: 30).
+            
         Returns:
-            str: A formatted dataframe containing the stock stats indicators for the specified ticker symbol and indicator.
+            A formatted string containing the stock stats indicators.
         """
-
-        result_stockstats = interface.get_stock_stats_indicators_window(
-            symbol, indicator, curr_date, look_back_days, True
-        )
-
-        return result_stockstats
+        try:
+            result_stockstats = interface.get_stock_stats_indicators_window(
+                symbol, indicator, curr_date, look_back_days, True
+            )
+            return result_stockstats
+        except Exception as e:
+            return f"Error retrieving online stock stats indicators: {str(e)}"
 
     @staticmethod
     @tool
     def get_finnhub_company_insider_sentiment(
-        ticker: Annotated[str, "ticker symbol for the company"],
-        curr_date: Annotated[
-            str,
-            "current date of you are trading at, yyyy-mm-dd",
-        ],
-    ):
-        """
-        Retrieve insider sentiment information about a company (retrieved from public SEC information) for the past 30 days
+        ticker: Annotated[str, "Ticker symbol for the company"],
+        curr_date: Annotated[str, "Current date of trading, yyyy-mm-dd"],
+    ) -> str:
+        """Retrieve insider sentiment information from SEC filings.
+        
         Args:
-            ticker (str): ticker symbol of the company
-            curr_date (str): current date you are trading at, yyyy-mm-dd
+            ticker: Ticker symbol of the company.
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: a report of the sentiment in the past 30 days starting at curr_date
+            A report of insider sentiment over the past 30 days.
         """
-
-        data_sentiment = interface.get_finnhub_company_insider_sentiment(
-            ticker, curr_date, 30
-        )
-
-        return data_sentiment
+        try:
+            data_sentiment = interface.get_finnhub_company_insider_sentiment(
+                ticker, curr_date, 30
+            )
+            return data_sentiment
+        except Exception as e:
+            return f"Error retrieving insider sentiment: {str(e)}"
 
     @staticmethod
     @tool
     def get_finnhub_company_insider_transactions(
-        ticker: Annotated[str, "ticker symbol"],
-        curr_date: Annotated[
-            str,
-            "current date you are trading at, yyyy-mm-dd",
-        ],
-    ):
-        """
-        Retrieve insider transaction information about a company (retrieved from public SEC information) for the past 30 days
+        ticker: Annotated[str, "Ticker symbol"],
+        curr_date: Annotated[str, "Current date of trading, yyyy-mm-dd"],
+    ) -> str:
+        """Retrieve insider transaction information from SEC filings.
+        
         Args:
-            ticker (str): ticker symbol of the company
-            curr_date (str): current date you are trading at, yyyy-mm-dd
+            ticker: Ticker symbol of the company.
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: a report of the company's insider transactions/trading information in the past 30 days
+            A report of insider transactions over the past 30 days.
         """
-
-        data_trans = interface.get_finnhub_company_insider_transactions(
-            ticker, curr_date, 30
-        )
-
-        return data_trans
+        try:
+            data_trans = interface.get_finnhub_company_insider_transactions(
+                ticker, curr_date, 30
+            )
+            return data_trans
+        except Exception as e:
+            return f"Error retrieving insider transactions: {str(e)}"
 
     @staticmethod
     @tool
     def get_simfin_balance_sheet(
-        ticker: Annotated[str, "ticker symbol"],
-        freq: Annotated[
-            str,
-            "reporting frequency of the company's financial history: annual/quarterly",
-        ],
-        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-    ):
-        """
-        Retrieve the most recent balance sheet of a company
+        ticker: Annotated[str, "Ticker symbol"],
+        freq: Annotated[str, "Reporting frequency: annual/quarterly"],
+        curr_date: Annotated[str, "Current date of trading, yyyy-mm-dd"],
+    ) -> str:
+        """Retrieve the most recent balance sheet of a company.
+        
         Args:
-            ticker (str): ticker symbol of the company
-            freq (str): reporting frequency of the company's financial history: annual / quarterly
-            curr_date (str): current date you are trading at, yyyy-mm-dd
+            ticker: Ticker symbol of the company.
+            freq: Reporting frequency ("annual" or "quarterly").
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: a report of the company's most recent balance sheet
+            A report of the company's most recent balance sheet.
         """
-
-        data_balance_sheet = interface.get_simfin_balance_sheet(ticker, freq, curr_date)
-
-        return data_balance_sheet
+        try:
+            data_balance_sheet = interface.get_simfin_balance_sheet(
+                ticker, freq, curr_date
+            )
+            return data_balance_sheet
+        except Exception as e:
+            return f"Error retrieving balance sheet: {str(e)}"
 
     @staticmethod
     @tool
     def get_simfin_cashflow(
-        ticker: Annotated[str, "ticker symbol"],
-        freq: Annotated[
-            str,
-            "reporting frequency of the company's financial history: annual/quarterly",
-        ],
-        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-    ):
-        """
-        Retrieve the most recent cash flow statement of a company
+        ticker: Annotated[str, "Ticker symbol"],
+        freq: Annotated[str, "Reporting frequency: annual/quarterly"],
+        curr_date: Annotated[str, "Current date of trading, yyyy-mm-dd"],
+    ) -> str:
+        """Retrieve the most recent cash flow statement of a company.
+        
         Args:
-            ticker (str): ticker symbol of the company
-            freq (str): reporting frequency of the company's financial history: annual / quarterly
-            curr_date (str): current date you are trading at, yyyy-mm-dd
+            ticker: Ticker symbol of the company.
+            freq: Reporting frequency ("annual" or "quarterly").
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-                str: a report of the company's most recent cash flow statement
+            A report of the company's most recent cash flow statement.
         """
-
-        data_cashflow = interface.get_simfin_cashflow(ticker, freq, curr_date)
-
-        return data_cashflow
+        try:
+            data_cashflow = interface.get_simfin_cashflow(ticker, freq, curr_date)
+            return data_cashflow
+        except Exception as e:
+            return f"Error retrieving cash flow: {str(e)}"
 
     @staticmethod
     @tool
     def get_simfin_income_stmt(
-        ticker: Annotated[str, "ticker symbol"],
-        freq: Annotated[
-            str,
-            "reporting frequency of the company's financial history: annual/quarterly",
-        ],
-        curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-    ):
-        """
-        Retrieve the most recent income statement of a company
+        ticker: Annotated[str, "Ticker symbol"],
+        freq: Annotated[str, "Reporting frequency: annual/quarterly"],
+        curr_date: Annotated[str, "Current date of trading, yyyy-mm-dd"],
+    ) -> str:
+        """Retrieve the most recent income statement of a company.
+        
         Args:
-            ticker (str): ticker symbol of the company
-            freq (str): reporting frequency of the company's financial history: annual / quarterly
-            curr_date (str): current date you are trading at, yyyy-mm-dd
+            ticker: Ticker symbol of the company.
+            freq: Reporting frequency ("annual" or "quarterly").
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-                str: a report of the company's most recent income statement
+            A report of the company's most recent income statement.
         """
-
-        data_income_stmt = interface.get_simfin_income_statements(
-            ticker, freq, curr_date
-        )
-
-        return data_income_stmt
+        try:
+            data_income_stmt = interface.get_simfin_income_statements(
+                ticker, freq, curr_date
+            )
+            return data_income_stmt
+        except Exception as e:
+            return f"Error retrieving income statement: {str(e)}"
 
     @staticmethod
     @tool
     def get_google_news(
         query: Annotated[str, "Query to search with"],
-        curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"],
-    ):
-        """
-        Retrieve the latest news from Google News based on a query and date range.
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """Retrieve the latest news from Google News.
+        
         Args:
-            query (str): Query to search with
-            curr_date (str): Current date in yyyy-mm-dd format
-            look_back_days (int): How many days to look back
+            query: Query to search with.
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted string containing the latest news from Google News based on the query and date range.
+            A formatted string containing the latest news from Google News.
         """
-
-        google_news_results = interface.get_google_news(query, curr_date, 7)
-
-        return google_news_results
+        try:
+            google_news_results = interface.get_google_news(query, curr_date, 7)
+            return google_news_results
+        except Exception as e:
+            return f"Error retrieving Google News: {str(e)}"
 
     @staticmethod
     @tool
     def get_stock_news_openai(
-        ticker: Annotated[str, "the company's ticker"],
+        ticker: Annotated[str, "The company's ticker"],
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    ):
-        """
-        Retrieve the latest news about a given stock by using OpenAI's news API.
+    ) -> str:
+        """Retrieve stock news using OpenAI's news tools.
+        
         Args:
-            ticker (str): Ticker of a company. e.g. AAPL, TSM
-            curr_date (str): Current date in yyyy-mm-dd format
+            ticker: Ticker of a company (e.g., AAPL, TSM).
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted string containing the latest news about the company on the given date.
+            A formatted string containing the latest news about the company.
         """
-
-        openai_news_results = interface.get_stock_news_openai(ticker, curr_date)
-
-        return openai_news_results
+        try:
+            openai_news_results = interface.get_stock_news_openai(ticker, curr_date)
+            return openai_news_results
+        except Exception as e:
+            return f"Error retrieving stock news: {str(e)}"
 
     @staticmethod
     @tool
     def get_global_news_openai(
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    ):
-        """
-        Retrieve the latest macroeconomics news on a given date using OpenAI's macroeconomics news API.
+    ) -> str:
+        """Retrieve macroeconomic news using OpenAI's news tools.
+        
         Args:
-            curr_date (str): Current date in yyyy-mm-dd format
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted string containing the latest macroeconomic news on the given date.
+            A formatted string containing macroeconomic news.
         """
-
-        openai_news_results = interface.get_global_news_openai(curr_date)
-
-        return openai_news_results
+        try:
+            openai_news_results = interface.get_global_news_openai(curr_date)
+            return openai_news_results
+        except Exception as e:
+            return f"Error retrieving global news: {str(e)}"
 
     @staticmethod
     @tool
     def get_fundamentals_openai(
-        ticker: Annotated[str, "the company's ticker"],
+        ticker: Annotated[str, "The company's ticker"],
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    ):
-        """
-        Retrieve the latest fundamental information about a given stock on a given date by using OpenAI's news API.
+    ) -> str:
+        """Retrieve fundamental information using OpenAI's tools.
+        
         Args:
-            ticker (str): Ticker of a company. e.g. AAPL, TSM
-            curr_date (str): Current date in yyyy-mm-dd format
+            ticker: Ticker of a company (e.g., AAPL, TSM).
+            curr_date: Current date in yyyy-mm-dd format.
+            
         Returns:
-            str: A formatted string containing the latest fundamental information about the company on the given date.
+            A formatted string containing fundamental information.
         """
-
-        openai_fundamentals_results = interface.get_fundamentals_openai(
-            ticker, curr_date
-        )
-
-        return openai_fundamentals_results
+        try:
+            openai_fundamentals_results = interface.get_fundamentals_openai(
+                ticker, curr_date
+            )
+            return openai_fundamentals_results
+        except Exception as e:
+            return f"Error retrieving fundamentals: {str(e)}"
 
     @staticmethod
     @tool
     def get_polymarket_events(
-        category: Annotated[str, "Category to filter events (e.g., 'politics', 'crypto', 'sports')"],
-        limit: Annotated[int, "Maximum number of events to return (default: 10)"] = 10,
-        active_only: Annotated[bool, "Only return active markets (default: True)"] = True,
-    ):
-        """
-        Get prediction market events from Polymarket.
+        category: Annotated[str, "Category to filter events (e.g., 'politics', 'crypto')"],
+        limit: Annotated[int, "Maximum number of events to return"] = 10,
+        active_only: Annotated[bool, "Only return active markets"] = True,
+    ) -> str:
+        """Get prediction market events from Polymarket.
+        
         Args:
-            category: Category to filter events
-            limit: Maximum number of events to return
-            active_only: Only return active markets
+            category: Category to filter events.
+            limit: Maximum number of events to return (default: 10).
+            active_only: Only return active markets (default: True).
+            
         Returns:
-            str: Formatted string containing event information
+            A formatted string containing event information.
         """
-        return interface.get_polymarket_events(category, limit, active_only)
+        try:
+            return interface.get_polymarket_events(category, limit, active_only)
+        except Exception as e:
+            return f"Error retrieving Polymarket events: {str(e)}"
 
     @staticmethod
     @tool
     def get_polymarket_market_analysis(
         market_id: Annotated[str, "Market ID to analyze"],
-        include_history: Annotated[bool, "Include historical price data (default: True)"] = True,
-    ):
-        """
-        Get detailed analysis for a specific prediction market.
+        include_history: Annotated[bool, "Include historical price data"] = True,
+    ) -> str:
+        """Get detailed analysis for a specific prediction market.
+        
         Args:
-            market_id: Market ID to analyze
-            include_history: Include historical price data
+            market_id: Market ID to analyze.
+            include_history: Include historical price data (default: True).
+            
         Returns:
-            str: Formatted string containing market analysis
+            A formatted string containing market analysis.
         """
-        return interface.get_polymarket_market_analysis(market_id, include_history)
+        try:
+            return interface.get_polymarket_market_analysis(market_id, include_history)
+        except Exception as e:
+            return f"Error retrieving market analysis: {str(e)}"
 
     @staticmethod
     @tool
     def get_trending_prediction_markets(
-        limit: Annotated[int, "Maximum number of trending markets to return (default: 5)"] = 5,
-    ):
-        """
-        Get trending prediction markets based on volume and activity.
+        limit: Annotated[int, "Maximum number of trending markets to return"] = 5,
+    ) -> str:
+        """Get trending prediction markets based on volume and activity.
+        
         Args:
-            limit: Maximum number of markets to return
+            limit: Maximum number of markets to return (default: 5).
+            
         Returns:
-            str: Formatted string containing trending markets
+            A formatted string containing trending markets.
         """
-        return interface.get_trending_prediction_markets(limit)
+        try:
+            return interface.get_trending_prediction_markets(limit)
+        except Exception as e:
+            return f"Error retrieving trending markets: {str(e)}"

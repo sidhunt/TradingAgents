@@ -1,76 +1,228 @@
-from typing import Annotated, Sequence
-from datetime import date, timedelta, datetime
-from typing_extensions import TypedDict, Optional
-from langchain_openai import ChatOpenAI
-from tradingagents.agents import *
-from langgraph.prebuilt import ToolNode
-from langgraph.graph import END, StateGraph, START, MessagesState
+"""State definitions for TradingAgents.
+
+This module defines TypedDict classes that represent the various states
+used throughout the TradingAgents framework, including agent states,
+debate states, and message states.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+from typing import Annotated, Any, Dict, List, Optional, Sequence, Union
+
+from langchain_core.messages import BaseMessage
+from langgraph.graph import MessagesState
+from typing_extensions import TypedDict
 
 
-# Researcher team state
 class InvestDebateState(TypedDict):
-    bull_history: Annotated[
-        str, "Bullish Conversation history"
-    ]  # Bullish Conversation history
-    bear_history: Annotated[
-        str, "Bearish Conversation history"
-    ]  # Bullish Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
-    current_response: Annotated[str, "Latest response"]  # Last response
-    judge_decision: Annotated[str, "Final judge decision"]  # Last response
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    """State for the investment debate between bull and bear researchers.
+    
+    This state tracks the conversation history and decisions during the
+    investment debate phase where bullish and bearish researchers discuss
+    whether to invest in a particular stock.
+    
+    Attributes:
+        bull_history: Conversation history from the bullish perspective.
+        bear_history: Conversation history from the bearish perspective.
+        history: Complete conversation history.
+        current_response: The most recent response in the debate.
+        judge_decision: Final decision made by the investment judge.
+        count: Length of the current conversation (number of exchanges).
+    """
+    bull_history: Annotated[str, "Bullish Conversation history"]
+    bear_history: Annotated[str, "Bearish Conversation history"]
+    history: Annotated[str, "Conversation history"]
+    current_response: Annotated[str, "Latest response"]
+    judge_decision: Annotated[str, "Final judge decision"]
+    count: Annotated[int, "Length of the current conversation"]
 
 
-# Risk management team state
 class RiskDebateState(TypedDict):
-    risky_history: Annotated[
-        str, "Risky Agent's Conversation history"
-    ]  # Conversation history
-    safe_history: Annotated[
-        str, "Safe Agent's Conversation history"
-    ]  # Conversation history
-    neutral_history: Annotated[
-        str, "Neutral Agent's Conversation history"
-    ]  # Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
+    """State for the risk management debate.
+    
+    This state tracks the conversation history and decisions during the
+    risk management debate phase where conservative, neutral, and aggressive
+    debators evaluate the risks of a proposed trade.
+    
+    Attributes:
+        risky_history: Conversation history from the aggressive/risky perspective.
+        safe_history: Conversation history from the conservative/safe perspective.
+        neutral_history: Conversation history from the neutral perspective.
+        history: Complete conversation history.
+        latest_speaker: The analyst who spoke last.
+        current_risky_response: Latest response by the aggressive analyst.
+        current_safe_response: Latest response by the conservative analyst.
+        current_neutral_response: Latest response by the neutral analyst.
+        judge_decision: Final decision made by the risk judge.
+        count: Length of the current conversation (number of exchanges).
+    """
+    risky_history: Annotated[str, "Risky Agent's Conversation history"]
+    safe_history: Annotated[str, "Safe Agent's Conversation history"]
+    neutral_history: Annotated[str, "Neutral Agent's Conversation history"]
+    history: Annotated[str, "Conversation history"]
     latest_speaker: Annotated[str, "Analyst that spoke last"]
-    current_risky_response: Annotated[
-        str, "Latest response by the risky analyst"
-    ]  # Last response
-    current_safe_response: Annotated[
-        str, "Latest response by the safe analyst"
-    ]  # Last response
-    current_neutral_response: Annotated[
-        str, "Latest response by the neutral analyst"
-    ]  # Last response
+    current_risky_response: Annotated[str, "Latest response by the risky analyst"]
+    current_safe_response: Annotated[str, "Latest response by the safe analyst"]
+    current_neutral_response: Annotated[str, "Latest response by the neutral analyst"]
     judge_decision: Annotated[str, "Judge's decision"]
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    count: Annotated[int, "Length of the current conversation"]
 
 
 class AgentState(MessagesState):
+    """Main state for the TradingAgents workflow.
+    
+    This state extends MessagesState and contains all the information
+    needed throughout the trading workflow, from initial analysis through
+    final trade decision.
+    
+    Attributes:
+        # Core information
+        company_of_interest: The stock ticker being analyzed.
+        trade_date: The date for which we're making trading decisions.
+        sender: The agent that sent the current message.
+        messages: List of messages in the conversation (inherited from MessagesState).
+        
+        # Research phase reports
+        market_report: Technical analysis report from the Market Analyst.
+        sentiment_report: Sentiment analysis report from Social Media Analyst.
+        news_report: News analysis report about current world affairs.
+        fundamentals_report: Fundamental analysis report.
+        
+        # Investment decision phase
+        investment_debate_state: State of the bull/bear investment debate.
+        investment_plan: Plan generated by the research team.
+        trader_investment_plan: Plan generated by the Trader agent.
+        
+        # Risk management phase
+        risk_debate_state: State of the risk management debate.
+        final_trade_decision: Final trade decision after risk evaluation.
+    """
+    # Core information
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
-
     sender: Annotated[str, "Agent that sent this message"]
-
-    # research step
+    
+    # Research phase reports
     market_report: Annotated[str, "Report from the Market Analyst"]
     sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
-    news_report: Annotated[
-        str, "Report from the News Researcher of current world affairs"
-    ]
+    news_report: Annotated[str, "Report from the News Researcher of current world affairs"]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
-
-    # researcher team discussion step
-    investment_debate_state: Annotated[
-        InvestDebateState, "Current state of the debate on if to invest or not"
-    ]
+    
+    # Investment decision phase
+    investment_debate_state: Annotated[InvestDebateState, "Current state of the debate on if to invest or not"]
     investment_plan: Annotated[str, "Plan generated by the Analyst"]
-
     trader_investment_plan: Annotated[str, "Plan generated by the Trader"]
-
-    # risk management team discussion step
-    risk_debate_state: Annotated[
-        RiskDebateState, "Current state of the debate on evaluating risk"
-    ]
+    
+    # Risk management phase
+    risk_debate_state: Annotated[RiskDebateState, "Current state of the debate on evaluating risk"]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+
+class AnalysisReport(TypedDict):
+    """Structured report from an analyst.
+    
+    Attributes:
+        analyst_type: Type of analyst (market, sentiment, news, fundamentals).
+        ticker: Stock ticker being analyzed.
+        analysis_date: Date of the analysis.
+        summary: Brief summary of findings.
+        key_points: List of key points from the analysis.
+        recommendation: Overall recommendation (bullish, bearish, neutral).
+        confidence: Confidence level (0.0 to 1.0).
+        raw_data: Raw data used for analysis.
+    """
+    analyst_type: Annotated[str, "Type of analyst"]
+    ticker: Annotated[str, "Stock ticker"]
+    analysis_date: Annotated[str, "Date of analysis"]
+    summary: Annotated[str, "Brief summary"]
+    key_points: Annotated[List[str], "Key points from analysis"]
+    recommendation: Annotated[str, "Overall recommendation"]
+    confidence: Annotated[float, "Confidence level (0.0 to 1.0)"]
+    raw_data: Annotated[Optional[Dict[str, Any]], "Raw data used"]
+
+
+class TradeDecision(TypedDict):
+    """Structured trade decision.
+    
+    Attributes:
+        action: The trade action (buy, sell, hold).
+        ticker: Stock ticker.
+        quantity: Number of shares or position size.
+        price: Target price or price range.
+        confidence: Confidence level in the decision (0.0 to 1.0).
+        reasoning: Explanation for the decision.
+        risk_level: Risk assessment (low, medium, high).
+        time_horizon: Expected time to hold (short, medium, long).
+        stop_loss: Optional stop loss price.
+        take_profit: Optional take profit price.
+    """
+    action: Annotated[str, "Trade action: buy, sell, or hold"]
+    ticker: Annotated[str, "Stock ticker"]
+    quantity: Annotated[Optional[int], "Number of shares"]
+    price: Annotated[Optional[float], "Target price"]
+    confidence: Annotated[float, "Confidence level (0.0 to 1.0)"]
+    reasoning: Annotated[str, "Explanation for the decision"]
+    risk_level: Annotated[str, "Risk assessment: low, medium, high"]
+    time_horizon: Annotated[str, "Time horizon: short, medium, long"]
+    stop_loss: Annotated[Optional[float], "Stop loss price"]
+    take_profit: Annotated[Optional[float], "Take profit price"]
+
+
+def create_initial_agent_state(
+    ticker: str,
+    trade_date: str,
+    selected_analysts: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """Create an initial state for a new trading session.
+    
+    Args:
+        ticker: The stock ticker to analyze.
+        trade_date: The trading date in YYYY-MM-DD format.
+        selected_analysts: List of analyst types to include.
+        
+    Returns:
+        Dictionary representing the initial agent state.
+        
+    Raises:
+        ValueError: If ticker or trade_date is invalid.
+    """
+    if not ticker or not isinstance(ticker, str):
+        raise ValueError("ticker must be a non-empty string")
+    
+    if not trade_date or not isinstance(trade_date, str):
+        raise ValueError("trade_date must be a non-empty string")
+    
+    return {
+        "company_of_interest": ticker.upper(),
+        "trade_date": trade_date,
+        "sender": "system",
+        "messages": [],
+        "market_report": "",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+        "investment_debate_state": {
+            "bull_history": "",
+            "bear_history": "",
+            "history": "",
+            "current_response": "",
+            "judge_decision": "",
+            "count": 0,
+        },
+        "investment_plan": "",
+        "trader_investment_plan": "",
+        "risk_debate_state": {
+            "risky_history": "",
+            "safe_history": "",
+            "neutral_history": "",
+            "history": "",
+            "latest_speaker": "",
+            "current_risky_response": "",
+            "current_safe_response": "",
+            "current_neutral_response": "",
+            "judge_decision": "",
+            "count": 0,
+        },
+        "final_trade_decision": "",
+    }
