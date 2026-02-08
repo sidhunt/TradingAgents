@@ -7,12 +7,13 @@
   <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
   <a href="./assets/wechat.png" target="_blank"><img alt="WeChat" src="https://img.shields.io/badge/WeChat-TauricResearch-brightgreen?logo=wechat&logoColor=white"/></a>
   <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
+  <a href="https://github.com/TauricResearch/TradingActions/actions" target="_blank"><img alt="CI/CD" src="https://img.shields.io/github/actions/workflow/status/TauricResearch/TradingAgents/ci-cd.yml?branch=main&label=CI/CD&logo=github"/></a>
+  <a href="https://pypi.org/project/tradingagents/" target="_blank"><img alt="PyPI" src="https://img.shields.io/pypi/v/tradingagents.svg?label=PyPI&logo=python"/></a>
   <br>
   <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/Join_GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
 </div>
 
 <div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
   <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
   <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
   <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
@@ -27,9 +28,7 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework 
 
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
->
-> So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
+> 🎉 **TradingAgents** is a production-ready, open-source multi-agent trading framework that mirrors the dynamics of real-world trading firms. Built with clean architecture principles, comprehensive type hints, and extensive documentation.
 
 <div align="center">
 <a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
@@ -43,200 +42,315 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🔧 [GitHub Codespaces](#github-codespaces-setup) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [Quick Start](#quick-start) | 📦 [Installation](#installation) | 🔧 [Configuration](#configuration) | 🧪 [Testing](#testing) | 📚 [Documentation](#documentation) | 🐳 [Docker](#docker-deployment) | 🤝 [Contributing](#contributing)
 
 </div>
 
-## TradingAgents Framework
+## Overview
 
-TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
+TradingAgents is a multi-agent trading framework that deploys specialized LLM-powered agents—from fundamental analysts and sentiment experts to technical analysts, traders, and risk management teams—to collaboratively evaluate market conditions and inform trading decisions.
 
 <p align="center">
   <img src="assets/schema.png" style="width: 100%; height: auto;">
 </p>
 
-> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
+> **⚠️ Disclaimer**: TradingAgents is designed for research and educational purposes. Trading performance may vary based on many factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
 
-Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
+### Key Features
+
+- 🏗️ **Clean Architecture**: Separated concerns with proper abstraction layers
+- 📝 **Type Safety**: Comprehensive type hints throughout the codebase
+- 🐳 **Docker Support**: Production-ready containerization
+- ✅ **CI/CD Pipeline**: Automated testing, linting, and deployment
+- 📊 **Multi-Agent System**: Specialized agents for different trading aspects
+- 🔧 **Configurable**: Flexible configuration system with environment variables
+- 🧪 **Well-Tested**: Comprehensive test suite with high coverage
+
+## Quick Start
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/TauricResearch/TradingAgents.git
+cd TradingAgents
+
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Or install as a package
+pip install -e .
+```
+
+### Configuration
+
+Create a `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your API keys:
+
+```bash
+# Required
+OPENAI_API_KEY=your_openai_api_key_here
+FINNHUB_API_KEY=your_finnhub_api_key_here
+
+# Optional
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+### Basic Usage
+
+```python
+from tradingagents import TradingAgentsGraph, DEFAULT_CONFIG
+
+# Initialize with default configuration
+ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+
+# Run analysis
+state, decision = ta.propagate("NVDA", "2024-05-10")
+print(decision)
+```
+
+### CLI Usage
+
+```bash
+# Run the interactive CLI
+python -m cli.main analyze
+
+# Or use the installed command
+tradingagents analyze
+```
+
+## Architecture
+
+The framework decomposes complex trading tasks into specialized roles:
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+- **Fundamentals Analyst**: Evaluates company financials and performance metrics
+- **Sentiment Analyst**: Analyzes social media and public sentiment
+- **News Analyst**: Monitors global news and macroeconomic indicators
+- **Technical Analyst**: Uses technical indicators (MACD, RSI) for pattern detection
+
+### Researcher Team
+- **Bull/Bear Researchers**: Debate investment opportunities from both perspectives
+
+### Risk Management
+- **Risk Analysts**: Evaluate portfolio risk and adjust trading strategies
+- **Portfolio Manager**: Approves/rejects transaction proposals
 
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-### Researcher Team
-- Comprises both bullish and bearish researchers who critically assess the insights provided by the Analyst Team. Through structured debates, they balance potential gains against inherent risks.
+## Docker Deployment
 
-<p align="center">
-  <img src="assets/researcher.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
+### Quick Start with Docker
 
-### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions. It determines the timing and magnitude of trades based on comprehensive market insights.
-
-<p align="center">
-  <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-### Risk Management and Portfolio Manager
-- Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
-
-<p align="center">
-  <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## Installation and CLI
-
-### Installation
-
-Clone TradingAgents:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
-cd TradingAgents
+# Build the Docker image
+docker build -t tradingagents .
+
+# Run with environment variables
+docker run -it --rm \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  -e FINNHUB_API_KEY=$FINNHUB_API_KEY \
+  tradingagents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+### Docker Compose
+
 ```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f tradingagents
+
+# Stop services
+docker-compose down
 ```
 
-Install dependencies:
+## Development
+
+### Setup Development Environment
+
 ```bash
-pip install -r requirements.txt
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run validation
+make validate
 ```
 
-### Required APIs
+### Testing
 
-You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
 ```bash
-export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
+# Run all tests
+make test
+
+# Run with coverage
+make test-cov
+
+# Run specific test types
+make test-unit        # Unit tests only
+make test-integration # Integration tests only
 ```
 
-You will need the OpenAI API for all the agents.
+### Code Quality
+
 ```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+# Format code
+make format
+
+# Run linters
+make lint
+
+# Run type checker
+mypy tradingagents cli
 ```
 
-### CLI Usage
+## Configuration
 
-You can also try out the CLI directly by running:
-```bash
-python -m cli.main
-```
-You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
+### Environment Variables
 
-<p align="center">
-  <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `FINNHUB_API_KEY` | FinnHub API key | Required |
+| `TRADINGAGENTS_LLM_PROVIDER` | LLM provider (openai/anthropic/google) | openrouter |
+| `TRADINGAGENTS_DEEP_THINK_LLM` | Model for deep analysis | anthropic/claude-3.5-sonnet |
+| `TRADINGAGENTS_QUICK_THINK_LLM` | Model for quick tasks | anthropic/claude-3.5-haiku |
+| `TRADINGAGENTS_MAX_DEBATE_ROUNDS` | Maximum debate rounds | 1 |
+| `TRADINGAGENTS_ONLINE_TOOLS` | Use online data sources | true |
+| `TRADINGAGENTS_LOG_LEVEL` | Logging level | INFO |
 
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
-
-<p align="center">
-  <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-<p align="center">
-  <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## GitHub Codespaces Setup
-
-### 🚀 One-Click Development Environment
-
-This repository is configured for GitHub Codespaces, providing a ready-to-use development environment with all dependencies pre-installed.
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/sidhunt/TradingAgents)
-
-### Quick Start Steps
-
-1. **Launch Codespace** - Click the button above or go to Code → Codespaces → Create codespace
-2. **Wait for setup** - The environment will automatically install all dependencies (~3-5 minutes)
-3. **Set your API keys:**
-   ```bash
-   export FINNHUB_API_KEY="your_finnhub_key"
-   export OPENAI_API_KEY="your_openai_key"
-   ```
-4. **Validate setup:**
-   ```bash
-   python validate_setup.py
-   ```
-5. **Run the CLI:**
-   ```bash
-   python -m cli.main analyze
-   ```
-
-### What's Included
-
-- **Python 3.12** with all dependencies pre-installed
-- **VS Code** with Python extensions
-- **Environment variables** pre-configured
-- **Port forwarding** for web apps (8000, 8501)
-- **Validation script** to check setup
-
-For detailed setup instructions, see [CODESPACES.md](CODESPACES.md) or [.devcontainer/README.md](.devcontainer/README.md).
-
-## TradingAgents Package
-
-### Implementation Details
-
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
-
-### Python Usage
-
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+### Custom Configuration
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents import TradingAgentsGraph, create_config
 
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+# Create custom configuration
+config = create_config(
+    llm_provider="openai",
+    deep_think_llm="gpt-4",
+    quick_think_llm="gpt-4o-mini",
+    max_debate_rounds=2,
+    online_tools=True
+)
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+# Validate configuration
+from tradingagents.default_config import validate_config
+errors = validate_config(config)
+if errors:
+    print(f"Configuration errors: {errors}")
+
+# Use custom config
+ta = TradingAgentsGraph(config=config)
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+## GitHub Codespaces
 
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/TauricResearch/TradingAgents)
 
-# Create a custom config
-config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
-config["online_tools"] = True # Use online tools or cached data
+1. Click the button above to launch a Codespace
+2. Wait for setup (~3-5 minutes)
+3. Set your API keys in the terminal
+4. Run validation: `python validate_setup.py`
 
-# Initialize with custom config
-ta = TradingAgentsGraph(debug=True, config=config)
+## Documentation
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+- [API Documentation](https://github.com/TauricResearch/TradingAgents/wiki)
+- [Configuration Guide](docs/configuration.md)
+- [Deployment Guide](docs/deployment.md)
+- [Contributing Guide](CONTRIBUTING.md)
+
+## Project Structure
+
+```
+TradingAgents/
+├── tradingagents/          # Main package
+│   ├── agents/            # Trading agents
+│   │   ├── analysts/      # Market, sentiment, news, fundamentals
+│   │   ├── researchers/   # Bull/bear researchers
+│   │   ├── risk_mgmt/     # Risk management agents
+│   │   └── utils/         # Agent utilities
+│   ├── dataflows/         # Data ingestion
+│   ├── graph/             # LangGraph workflows
+│   └── exceptions.py      # Custom exceptions
+├── cli/                   # Command-line interface
+├── tests/                 # Test suite
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   └── e2e/              # End-to-end tests
+├── .github/workflows/     # CI/CD pipelines
+├── Dockerfile            # Container definition
+├── docker-compose.yml    # Orchestration
+├── pyproject.toml        # Project metadata
+└── requirements.txt      # Dependencies
 ```
 
-> For `online_tools`, we recommend enabling them for experimentation, as they provide access to real-time data. The agents' offline tools rely on cached data from our **Tauric TradingDB**, a curated dataset we use for backtesting. We're currently in the process of refining this dataset, and we plan to release it soon alongside our upcoming projects. Stay tuned!
+## CI/CD Pipeline
 
-You can view the full list of configurations in `tradingagents/default_config.py`.
+The project includes GitHub Actions workflows for:
+
+- **Lint & Format**: Black, isort, flake8, mypy
+- **Testing**: pytest with coverage reporting
+- **Security**: Bandit security scanning
+- **Build**: Package building and validation
+- **Docker**: Container image building
+- **Release**: Automated PyPI publishing
 
 ## Contributing
 
-We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make your changes with tests
+4. Run the test suite: `make test`
+5. Commit with clear messages
+6. Push and create a Pull Request
+
+## Troubleshooting
+
+### Common Issues
+
+**API Rate Limits**
+```python
+# Add delays between requests or use caching
+config["online_tools"] = False  # Use cached data
+```
+
+**Memory Issues**
+```python
+# Reduce debate rounds
+config["max_debate_rounds"] = 1
+```
+
+**Import Errors**
+```bash
+# Ensure package is installed
+pip install -e .
+```
 
 ## Citation
 
-Please reference our work if you find *TradingAgents* provides you with some help :)
+If you use TradingAgents in your research, please cite:
 
-```
+```bibtex
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
       title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
       author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
@@ -247,3 +361,25 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [LangGraph](https://github.com/langchain-ai/langgraph)
+- Inspired by real-world trading firm workflows
+- Thanks to all contributors and the open-source community
+
+## Support
+
+- 📧 Email: yijia.xiao@cs.ucla.edu
+- 💬 Discord: [Join our community](https://discord.com/invite/hk9PGKShPK)
+- 🐦 Twitter: [@TauricResearch](https://x.com/TauricResearch)
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by the TradingAgents Team at Tauric Research</sub>
+</div>
